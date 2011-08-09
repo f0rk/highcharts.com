@@ -1,7 +1,7 @@
 /**
  * A wrapper object for SVG elements 
  */
-function SVGElement () {}
+function SVGElement() {}
 
 SVGElement.prototype = {
 	/**
@@ -9,7 +9,7 @@ SVGElement.prototype = {
 	 * @param {Object} renderer
 	 * @param {String} nodeName
 	 */
-	init: function(renderer, nodeName) {
+	init: function (renderer, nodeName) {
 		this.element = doc.createElementNS(SVG_NS, nodeName);
 		this.renderer = renderer;
 	},
@@ -19,7 +19,7 @@ SVGElement.prototype = {
 	 * @param {Number} options The same options as in jQuery animation
 	 * @param {Function} complete Function to perform at the end of animation
 	 */
-	animate: function(params, options, complete) {
+	animate: function (params, options, complete) {
 		var animOptions = pick(options, globalAnimation, true);
 		if (animOptions) {
 			animOptions = merge(animOptions);
@@ -39,7 +39,7 @@ SVGElement.prototype = {
 	 * @param {Object|String} hash
 	 * @param {Mixed|Undefined} val
 	 */
-	attr: function(hash, val) {
+	attr: function (hash, val) {
 		var key, 
 			value, 
 			i, 
@@ -92,7 +92,7 @@ SVGElement.prototype = {
 					
 				// update child tspans x values
 				} else if (key === 'x' && nodeName === 'text') { 
-					for (i = 0; i < element.childNodes.length; i++ ) {
+					for (i = 0; i < element.childNodes.length; i++) {
 						child = element.childNodes[i];
 						// if the x values are equal, the tspan represents a linebreak
 						if (attr(child, 'x') === attr(element, 'x')) {
@@ -102,8 +102,8 @@ SVGElement.prototype = {
 					}
 					
 					if (this.rotation) {
-						attr(element, 'transform', 'rotate('+ this.rotation +' '+ value +' '+
-							pInt(hash.y || attr(element, 'y')) +')');
+						attr(element, 'transform', 'rotate(' + this.rotation + ' ' + value + ' ' +
+							pInt(hash.y || attr(element, 'y')) + ')');
 					}
 					
 				// apply gradients
@@ -224,10 +224,10 @@ SVGElement.prototype = {
 	 * .attr() method
 	 * @param {Object} hash
 	 */
-	symbolAttr: function(hash) {
+	symbolAttr: function (hash) {
 		var wrapper = this;
 		
-		each(['x', 'y', 'r', 'start', 'end', 'width', 'height', 'innerR'], function(key) {
+		each(['x', 'y', 'r', 'start', 'end', 'width', 'height', 'innerR'], function (key) {
 			wrapper[key] = pick(hash[key], wrapper[key]);
 		});
 		
@@ -236,13 +236,14 @@ SVGElement.prototype = {
 					mathRound(wrapper.x * 2) / 2, // Round to halves. Issue #274.
 					mathRound(wrapper.y * 2) / 2, 
 					wrapper.r, 
-			{
-				start: wrapper.start, 
-				end: wrapper.end,
-				width: wrapper.width, 
-				height: wrapper.height,
-				innerR: wrapper.innerR
-			})
+					{
+						start: wrapper.start, 
+						end: wrapper.end,
+						width: wrapper.width, 
+						height: wrapper.height,
+						innerR: wrapper.innerR
+					}
+			)
 		});
 	},
 	
@@ -250,8 +251,8 @@ SVGElement.prototype = {
 	 * Apply a clipping path to this object
 	 * @param {String} id
 	 */
-	clip: function(clipRect) {
-		return this.attr('clip-path', 'url('+ this.renderer.url +'#'+ clipRect.id +')');
+	clip: function (clipRect) {
+		return this.attr('clip-path', 'url(' + this.renderer.url + '#' + clipRect.id + ')');
 	},
 	
 	/**
@@ -263,7 +264,7 @@ SVGElement.prototype = {
 	 * @param {Number} width
 	 * @param {Number} height
 	 */
-	crisp: function(strokeWidth, x, y, width, height) {
+	crisp: function (strokeWidth, x, y, width, height) {
 		
 		var wrapper = this,
 			key,
@@ -294,13 +295,13 @@ SVGElement.prototype = {
 	 * Set styles for the element
 	 * @param {Object} styles
 	 */
-	css: function(styles) {
+	css: function (styles) {
 		var elemWrapper = this,
 			elem = elemWrapper.element,
 			textWidth = styles && styles.width && elem.nodeName === 'text',
 			n,
 			serializedCss = '',
-			hyphenate = function(a, b){ return '-'+ b.toLowerCase(); };
+			hyphenate = function (a, b) { return '-' + b.toLowerCase(); };
 			
 		// convert legacy
 		if (styles && styles.color) {
@@ -326,7 +327,7 @@ SVGElement.prototype = {
 			css(elemWrapper.element, styles);	
 		} else {
 			for (n in styles) {
-				serializedCss += n.replace(/([A-Z])/g, hyphenate) + ':'+ styles[n] + ';';
+				serializedCss += n.replace(/([A-Z])/g, hyphenate) + ':' + styles[n] + ';';
 			}
 			elemWrapper.attr({
 				style: serializedCss
@@ -347,18 +348,18 @@ SVGElement.prototype = {
 	 * @param {String} eventType
 	 * @param {Function} handler
 	 */
-	on: function(eventType, handler) {
+	on: function (eventType, handler) {
 		var fn = handler;
 		// touch
 		if (hasTouch && eventType === 'click') {
 			eventType = 'touchstart';
-			fn = function(e) {
+			fn = function (e) {
 				e.preventDefault();
 				handler();
 			};
 		}
 		// simplest possible event model for internal use
-		this.element['on'+ eventType] = fn;
+		this.element['on' + eventType] = fn;
 		return this;
 	},
 	
@@ -368,7 +369,7 @@ SVGElement.prototype = {
 	 * @param {Number} x
 	 * @param {Number} y
 	 */
-	translate: function(x, y) {
+	translate: function (x, y) {
 		return this.attr({
 			translateX: x,
 			translateY: y
@@ -378,7 +379,7 @@ SVGElement.prototype = {
 	/**
 	 * Invert a group, rotate and flip
 	 */
-	invert: function() {
+	invert: function () {
 		var wrapper = this;
 		wrapper.inverted = true;
 		wrapper.updateTransform();
@@ -389,7 +390,7 @@ SVGElement.prototype = {
 	 * Private method to update the transform attribute based on internal 
 	 * properties
 	 */
-	updateTransform: function() {
+	updateTransform: function () {
 		var wrapper = this,
 			translateX = wrapper.translateX || 0,
 			translateY = wrapper.translateY || 0,
@@ -405,14 +406,14 @@ SVGElement.prototype = {
 			
 		// apply translate
 		if (translateX || translateY) {
-			transform.push('translate('+ translateX +','+ translateY +')');
+			transform.push('translate(' + translateX + ',' + translateY + ')');
 		}
 		
 		// apply rotation
 		if (inverted) {
 			transform.push('rotate(90) scale(-1,1)');
 		} else if (rotation) { // text rotation
-			transform.push('rotate('+ rotation +' '+ wrapper.x +' '+ wrapper.y +')');
+			transform.push('rotate(' + rotation + ' ' + wrapper.x + ' ' + wrapper.y + ')');
 		}
 		
 		if (transform.length) {
@@ -422,7 +423,7 @@ SVGElement.prototype = {
 	/**
 	 * Bring the element to the front
 	 */
-	toFront: function() {
+	toFront: function () {
 		var element = this.element;
 		element.parentNode.appendChild(element);
 		return this;
@@ -438,7 +439,7 @@ SVGElement.prototype = {
 	 * @param {Object} box The box to align to, needs a width and height
 	 * 
 	 */
-	align: function(alignOptions, alignByTranslate, box) {
+	align: function (alignOptions, alignByTranslate, box) {
 		var elemWrapper = this;
 		
 		if (!alignOptions) { // called on resize
@@ -463,7 +464,7 @@ SVGElement.prototype = {
 			
 		// align
 		if (/^(right|center)$/.test(align)) {
-			x += (box.width - (alignOptions.width || 0) ) /
+			x += (box.width - (alignOptions.width || 0)) /
 					{ right: 1, center: 2 }[align];
 		}
 		attribs[alignByTranslate ? 'translateX' : 'x'] = mathRound(x);
@@ -488,7 +489,7 @@ SVGElement.prototype = {
 	/**
 	 * Get the bounding box (width, height, x and y) for the element
 	 */
-	getBBox: function() {		
+	getBBox: function () {		
 		var bBox,
 			width,
 			height,
@@ -507,7 +508,7 @@ SVGElement.prototype = {
 					width: element.offsetWidth,
 					height: element.offsetHeight
 				};
-		} catch(e) {
+		} catch (e) {
 			bBox = { width: 0, height: 0 };
 		}
 		width = bBox.width;
@@ -538,14 +539,14 @@ SVGElement.prototype = {
 	/**
 	 * Show the element
 	 */
-	show: function() {
+	show: function () {
 		return this.attr({ visibility: VISIBLE });
 	},
 	
 	/**
 	 * Hide the element
 	 */
-	hide: function() {
+	hide: function () {
 		return this.attr({ visibility: HIDDEN });
 	},
 	
@@ -554,7 +555,7 @@ SVGElement.prototype = {
 	 * @param {Object|Undefined} parent Can be an element, an element wrapper or undefined
 	 *    to append the element to the renderer.box.
 	 */ 
-	add: function(parent) {
+	add: function (parent) {
 	
 		var renderer = this.renderer,
 			parentWrapper = parent || renderer,
@@ -609,7 +610,7 @@ SVGElement.prototype = {
 	/**
 	 * Destroy the element and element wrapper
 	 */
-	destroy: function() {
+	destroy: function () {
 		var wrapper = this,
 			element = wrapper.element || {},
 			shadows = wrapper.shadows,
@@ -627,7 +628,7 @@ SVGElement.prototype = {
 		
 		// destroy shadows
 		if (shadows) {
-			each(shadows, function(shadow) {
+			each(shadows, function (shadow) {
 				parentNode = shadow.parentNode;
 				if (parentNode) { // the entire chart HTML can be overwritten
 					parentNode.removeChild(shadow);
@@ -648,7 +649,7 @@ SVGElement.prototype = {
 	/**
 	 * Empty a group element
 	 */
-	empty: function() {
+	empty: function () {
 		var element = this.element,
 			childNodes = element.childNodes,
 			i = childNodes.length;
@@ -662,7 +663,7 @@ SVGElement.prototype = {
 	 * Add a shadow to the element. Must be done after the element is added to the DOM
 	 * @param {Boolean} apply
 	 */
-	shadow: function(apply, group) {
+	shadow: function (apply, group) {
 		var shadows = [],
 			i,
 			shadow,
@@ -680,7 +681,7 @@ SVGElement.prototype = {
 					'stroke': 'rgb(0, 0, 0)',
 					'stroke-opacity': 0.05 * i,
 					'stroke-width': 7 - 2 * i,
-					'transform': 'translate'+ transform,
+					'transform': 'translate' + transform,
 					'fill': NONE
 				});
 				
@@ -703,7 +704,7 @@ SVGElement.prototype = {
 /**
  * The default SVG renderer
  */
-var SVGRenderer = function() {
+var SVGRenderer = function () {
 	this.init.apply(this, arguments);
 };
 SVGRenderer.prototype = {
@@ -717,7 +718,7 @@ SVGRenderer.prototype = {
 	 * @param {Number} height
 	 * @param {Boolean} forExport
 	 */
-	init: function(container, width, height, forExport) {
+	init: function (container, width, height, forExport) {
 		var renderer = this,
 			loc = location,
 			boxWrapper;
@@ -746,7 +747,7 @@ SVGRenderer.prototype = {
 	 * Create a wrapper for an SVG element
 	 * @param {Object} nodeName
 	 */
-	createElement: function(nodeName) {
+	createElement: function (nodeName) {
 		var wrapper = new this.Element();
 		wrapper.init(this, nodeName);
 		return wrapper;
@@ -755,14 +756,14 @@ SVGRenderer.prototype = {
 	/**
 	 * Dummy function for use in canvas renderer
 	 */
-	draw: function() {},
+	draw: function () {},
 	
 	/** 
 	 * Parse a simple HTML string into SVG tspans
 	 * 
 	 * @param {Object} textNode The parent text SVG node
 	 */
-	buildText: function(wrapper) {
+	buildText: function (wrapper) {
 		var textNode = wrapper.element,
 			lines = pick(wrapper.textStr, '').toString()
 				.replace(/<(b|strong)>/g, '<span style="font-weight:bold">')
@@ -793,7 +794,7 @@ SVGRenderer.prototype = {
 			this.box.appendChild(textNode); // attach it to the DOM to read offset width
 		}
 		
-		each(lines, function(line, lineNo) {
+		each(lines, function (line, lineNo) {
 			var spans, spanNo = 0, lineHeight;
 			
 			line = line.replace(/<span/g, '|||<span').replace(/<\/span>/g, '</span>|||');
@@ -811,7 +812,7 @@ SVGRenderer.prototype = {
 						);
 					}
 					if (hrefRegex.test(span)) {
-						attr(tspan, 'onclick', 'location.href=\"'+ span.match(hrefRegex)[1] +'\"');
+						attr(tspan, 'onclick', 'location.href=\"' + span.match(hrefRegex)[1] + '\"');
 						css(tspan, { cursor: 'pointer' });
 					}
 					
@@ -915,7 +916,7 @@ SVGRenderer.prototype = {
 	 * @param {Array} points
 	 * @param {Number} width 
 	 */
-	crispLine: function(points, width) {
+	crispLine: function (points, width) {
 		// points format: [M, 0, 0, L, 100, 0]
 		// normalize to a crisp line
 		if (points[1] === points[4]) {
@@ -1020,7 +1021,7 @@ SVGRenderer.prototype = {
 	 * @param {Boolean} animate
 	 * 
 	 */
-	setSize: function(width, height, animate) {
+	setSize: function (width, height, animate) {
 		var renderer = this,
 			alignedObjects = renderer.alignedObjects,
 			i = alignedObjects.length;
@@ -1043,7 +1044,7 @@ SVGRenderer.prototype = {
 	 * @param {String} name The group will be given a class name of 'highcharts-{name}'.
 	 *     This can be used for styling and scripting.
 	 */
-	g: function(name) {
+	g: function (name) {
 		return this.createElement('g').attr(
 			defined(name) && { 'class': PREFIX + name }
 		);
@@ -1057,7 +1058,7 @@ SVGRenderer.prototype = {
 	 * @param {Number} width
 	 * @param {Number} height
 	 */
-	image: function(src, x, y, width, height) {
+	image: function (src, x, y, width, height) {
 		var attribs = {
 				preserveAspectRatio: NONE	
 			},
@@ -1097,7 +1098,7 @@ SVGRenderer.prototype = {
 	 * @param {Object} radius
 	 * @param {Object} options
 	 */
-	symbol: function(symbol, x, y, radius, options) {
+	symbol: function (symbol, x, y, radius, options) {
 		
 		var obj,
 			
@@ -1134,7 +1135,7 @@ SVGRenderer.prototype = {
 		// image symbols
 		} else if (imageRegex.test(symbol)) {
 			
-			var centerImage = function(img, size) {
+			var centerImage = function (img, size) {
 				img.attr({
 					width: size[0],
 					height: size[1]
@@ -1162,7 +1163,7 @@ SVGRenderer.prototype = {
 
 				// create a dummy JavaScript image to get the width and height  
 				createElement('img', {
-					onload: function() {
+					onload: function () {
 						var img = this;
 						centerImage(obj, symbolSizes[imageSrc] = [img.width, img.height]);
 					},
@@ -1185,19 +1186,19 @@ SVGRenderer.prototype = {
 		'square': function (x, y, radius) {
 			var len = 0.707 * radius;
 			return [
-				M, x-len, y-len,
-				L, x+len, y-len,
-				x+len, y+len,
-				x-len, y+len,
+				M, x - len, y - len,
+				L, x + len, y - len,
+				x + len, y + len,
+				x - len, y + len,
 				'Z'
 			];
 		},
 			
 		'triangle': function (x, y, radius) {
 			return [
-				M, x, y-1.33 * radius,
-				L, x+radius, y + 0.67 * radius,
-				x-radius, y + 0.67 * radius,
+				M, x, y - 1.33 * radius,
+				L, x + radius, y + 0.67 * radius,
+				x - radius, y + 0.67 * radius,
 				'Z'
 			];
 		},
@@ -1205,17 +1206,17 @@ SVGRenderer.prototype = {
 		'triangle-down': function (x, y, radius) {
 			return [
 				M, x, y + 1.33 * radius,
-				L, x-radius, y-0.67 * radius,
-				x+radius, y-0.67 * radius,
+				L, x - radius, y - 0.67 * radius,
+				x + radius, y - 0.67 * radius,
 				'Z'
 			];
 		},
 		'diamond': function (x, y, radius) {
 			return [
-				M, x, y-radius,
-				L, x+radius, y,
-				x, y+radius,
-				x-radius, y,
+				M, x, y - radius,
+				L, x + radius, y,
+				x, y + radius,
+				x - radius, y,
 				'Z'
 			];
 		},
@@ -1287,7 +1288,7 @@ SVGRenderer.prototype = {
 	 * 
 	 * @param {Object} color The color or config object
 	 */
-	color: function(color, elem, prop) {
+	color: function (color, elem, prop) {
 		var colorObject,
 			regexRgba = /^rgba/;
 		if (color && color.linearGradient) {
@@ -1307,7 +1308,7 @@ SVGRenderer.prototype = {
 				y2: linearGradient[3]
 			}).add(renderer.defs);
 			
-			each(color.stops, function(stop) {
+			each(color.stops, function (stop) {
 				if (regexRgba.test(stop[1])) {
 					colorObject = Color(stop[1]);
 					stopColor = colorObject.get('rgb');
@@ -1323,12 +1324,12 @@ SVGRenderer.prototype = {
 				}).add(gradientObject);
 			});
 			
-			return 'url('+ this.url +'#'+ id +')';
+			return 'url(' + this.url + '#' + id + ')';
 			
 		// Webkit and Batik can't show rgba.
 		} else if (regexRgba.test(color)) {
 			colorObject = Color(color);
-			attr(elem, prop +'-opacity', colorObject.get('a'));
+			attr(elem, prop + '-opacity', colorObject.get('a'));
 			
 			return colorObject.get('rgb');
 			
@@ -1346,7 +1347,7 @@ SVGRenderer.prototype = {
 	 * @param {Number} x Left position
 	 * @param {Number} y Top position
 	 */
-	text: function(str, x, y) {
+	text: function (str, x, y) {
 		
 		// declare variables
 		var defaultChartStyle = defaultOptions.chart.style,

@@ -7,7 +7,7 @@
 var CanVGRenderer;
 if (useCanVG) {
 	
-CanVGRenderer = function(container) {
+CanVGRenderer = function (container) {
 	var contStyle = container.style,
 		canvas;
 	
@@ -36,18 +36,18 @@ CanVGRenderer = function(container) {
 	this.deferred = [];
 };
 
-CanVGRenderer.prototype = merge( SVGRenderer.prototype, { // inherit SVGRenderer
+CanVGRenderer.prototype = merge(SVGRenderer.prototype, { // inherit SVGRenderer
 
 	/**
 	 * Draws the SVG on the canvas or adds a draw invokation to the deferred list. 
 	 */
-	draw: function() {
+	draw: function () {
 		var renderer = this;
 		
 		if (win.canvg) {
 			canvg(renderer.canvas, renderer.container.innerHTML);
 		} else {
-			renderer.deferred.push(function() {
+			renderer.deferred.push(function () {
 				renderer.draw();
 			});
 		}
@@ -57,13 +57,13 @@ CanVGRenderer.prototype = merge( SVGRenderer.prototype, { // inherit SVGRenderer
 	 * Starts to downloads the canvg script and sets a callback to drawDeferred when its
 	 * loaded.
 	 */
-	download: function(scriptLocation, doc) {
+	download: function (scriptLocation, doc) {
 		var renderer = this,
 			head = doc.getElementsByTagName('head')[0],
 			scriptAttributes = {
 				type: 'text/javascript',
 				src: scriptLocation,
-				onload: function() {
+				onload: function () {
 					renderer.drawDeferred();
 				}
 			};
@@ -74,10 +74,10 @@ CanVGRenderer.prototype = merge( SVGRenderer.prototype, { // inherit SVGRenderer
 	/**
 	 * Draws the deferred canvases when the canvg script is loaded.
 	 */
-	drawDeferred: function() {
+	drawDeferred: function () {
 		var renderer = this;
 
-		each(renderer.deferred, function(fn) {
+		each(renderer.deferred, function (fn) {
 			fn();
 			erase(renderer.deferred, fn);
 		});
