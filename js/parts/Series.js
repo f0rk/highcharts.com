@@ -1216,6 +1216,8 @@ Series.prototype = {
 						})
 						.translate(chart.plotLeft, chart.plotTop)
 						.add();
+			} else {
+				dataLabelsGroup.translate(chart.plotLeft, chart.plotTop);
 			}
 		
 			// determine the color

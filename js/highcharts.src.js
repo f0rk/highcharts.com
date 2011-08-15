@@ -10,7 +10,6 @@
  */
 
 // JSLint options:
-/*jslint forin: true */
 /*global document, window, navigator, setInterval, clearInterval, clearTimeout, setTimeout, location, jQuery, $ */
 	
 (function () {
@@ -500,8 +499,12 @@ function placeBox(boxWidth, boxHeight, outerLeft, outerTop, outerWidth, outerHei
 
 	if (y < 5) {
 		y = 5; // above
+
+		// If the tooltip is still covering the point, move it below instead 
+		if (point.y >= y && point.y <= (y + boxHeight)) {
+			y = point.y + boxHeight - 5; // below
+		}
 	} else if (y + boxHeight > outerHeight) {
-		y = outerHeight - boxHeight - 5; // below
 		y = outerHeight - boxHeight - 5; // below
 	}
 
@@ -2855,6 +2858,9 @@ SVGRenderer.prototype = {
 			
 			
 		} else {
+			// Remove the opacity attribute added above. Does not throw if the attribute is not there.
+			elem.removeAttribute(prop + '-opacity');
+
 			return color;
 		}
 		
@@ -3667,6 +3673,10 @@ VMLRenderer.prototype = merge(SVGRenderer.prototype, { // inherit SVGRenderer
 			
 			
 		} else {
+			var strokeNodes = elem.getElementsByTagName(prop);
+			if (strokeNodes.length) {
+				strokeNodes[0].opacity = 1;
+			}
 			return color;
 		}
 		
@@ -5591,7 +5601,7 @@ function Chart(options, callback) {
 				// minor ticks
 				if (minorTickInterval && !categories) {
 					var pos = min + (tickPositions[0] - min) % minorTickInterval;
-					for (pos; pos <= max; pos += minorTickInterval) {
+					for (; pos <= max; pos += minorTickInterval) {
 						if (!minorTicks[pos]) {
 							minorTicks[pos] = new Tick(pos, true);
 						}
@@ -8191,7 +8201,9 @@ function Chart(options, callback) {
 		var ONREADYSTATECHANGE = 'onreadystatechange',
 			COMPLETE = 'complete';
 		// Note: in spite of JSLint's complaints, win == win.top is required
+		/*jslint eqeq: true*/
 		if (!hasSVG && win == win.top && doc.readyState !== COMPLETE) {
+		/*jslint eqeq: false*/
 			doc.attachEvent(ONREADYSTATECHANGE, function () {
 				doc.detachEvent(ONREADYSTATECHANGE, firstRender);
 				if (doc.readyState === COMPLETE) {
@@ -9549,6 +9561,8 @@ Series.prototype = {
 						})
 						.translate(chart.plotLeft, chart.plotTop)
 						.add();
+			} else {
+				dataLabelsGroup.translate(chart.plotLeft, chart.plotTop);
 			}
 		
 			// determine the color
