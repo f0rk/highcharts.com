@@ -6,13 +6,13 @@
  *****************************************************************************/
 var CanVGRenderer;
 if (useCanVG) {
-	
+
 CanVGRenderer = function (container) {
 	var contStyle = container.style,
 		canvas;
-	
+
 	this.init.apply(this, arguments);
-			
+
 	// add the canvas above it
 	canvas = createElement('canvas', {
 		width: container.offsetWidth,
@@ -22,13 +22,13 @@ CanVGRenderer = function (container) {
 		left: contStyle.left,
 		top: contStyle.top
 	}, container.parentNode);
-	
+
 	// hide the container
 	css(container, {
 		position: ABSOLUTE,
 		visibility: HIDDEN
 	});
-	
+
 	this.container = container;
 	this.canvas = canvas;
 
@@ -39,11 +39,11 @@ CanVGRenderer = function (container) {
 CanVGRenderer.prototype = merge(SVGRenderer.prototype, { // inherit SVGRenderer
 
 	/**
-	 * Draws the SVG on the canvas or adds a draw invokation to the deferred list. 
+	 * Draws the SVG on the canvas or adds a draw invokation to the deferred list.
 	 */
 	draw: function () {
 		var renderer = this;
-		
+
 		if (win.canvg) {
 			canvg(renderer.canvas, renderer.container.innerHTML);
 		} else {
@@ -52,7 +52,7 @@ CanVGRenderer.prototype = merge(SVGRenderer.prototype, { // inherit SVGRenderer
 			});
 		}
 	},
-	
+
 	/**
 	 * Starts to downloads the canvg script and sets a callback to drawDeferred when its
 	 * loaded.
@@ -85,12 +85,12 @@ CanVGRenderer.prototype = merge(SVGRenderer.prototype, { // inherit SVGRenderer
 });
 
 } // end CanVGRenderer
-/* **************************************************************************** 
- *                                                                            * 
+/* ****************************************************************************
+ *                                                                            *
  * END OF ANDROID < 3 SPECIFIC CODE                                           *
  *                                                                            *
  *****************************************************************************/
-	
+
 
 /**
  * General renderer
