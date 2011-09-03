@@ -1174,7 +1174,8 @@ Series.prototype = {
 				x,
 				y,
 				data = series.data,
-				options = series.options.dataLabels,
+				seriesOptions = series.options,
+				options = seriesOptions.dataLabels,
 				str,
 				dataLabelsGroup = series.dataLabelsGroup,
 				chart = series.chart,
@@ -1182,7 +1183,7 @@ Series.prototype = {
 				inverted = chart.inverted,
 				seriesType = series.type,
 				color,
-				stacking = series.options.stacking,
+				stacking = seriesOptions.stacking,
 				isBarLike = seriesType === 'column' || seriesType === 'bar',
 				vAlignIsNull = options.verticalAlign === null,
 				yIsNull = options.y === null;
@@ -1291,7 +1292,7 @@ Series.prototype = {
 					dataLabel[chart.isInsidePlot(plotX, plotY) ? 'show' : 'hide']();
 				}*/
 
-				if (isBarLike && series.options.stacking) {
+				if (isBarLike && seriesOptions.stacking && dataLabel) {
 					var barY = point.barY,
 						barW = point.barW,
 						barH = point.barH;

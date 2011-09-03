@@ -4191,6 +4191,7 @@ function Chart(options, callback) {
 			);
 
 		var axis = this,
+			axisTitle,
 			type = options.type,
 			isDatetimeAxis = type === 'datetime',
 			isLog = type === 'logarithmic',
@@ -5537,8 +5538,8 @@ function Chart(options, callback) {
 			}
 
 			if (axisTitleOptions && axisTitleOptions.text) {
-				if (!axis.axisTitle) {
-					axis.axisTitle = renderer.text(
+				if (!axisTitle) {
+					axisTitle = axis.axisTitle = renderer.text(
 						axisTitleOptions.text,
 						0,
 						0
@@ -5552,9 +5553,10 @@ function Chart(options, callback) {
 					})
 					.css(axisTitleOptions.style)
 					.add();
+					axisTitle.isNew = true;
 				}
 
-				titleOffset = axis.axisTitle.getBBox()[horiz ? 'height' : 'width'];
+				titleOffset = axisTitle.getBBox()[horiz ? 'height' : 'width'];
 				titleMargin = pick(axisTitleOptions.margin, horiz ? 5 : 10);
 
 			}
@@ -5731,7 +5733,7 @@ function Chart(options, callback) {
 
 			}
 
-			if (axis.axisTitle) {
+			if (axisTitle) {
 				// compute anchor points for each of the title align options
 				var margin = horiz ? plotLeft : plotTop,
 					fontSize = pInt(axisTitleOptions.style.fontSize || 12),
@@ -5750,7 +5752,7 @@ function Chart(options, callback) {
 					//(isIE ? fontSize / 3 : 0)+ // preliminary fix for vml's centerline
 					(side === 2 ? fontSize : 0);
 
-				axis.axisTitle[hasRendered ? 'animate' : 'attr']({
+				axisTitle[axisTitle.isNew ? 'attr' : 'animate']({
 					x: horiz ?
 						alongAxis :
 						offAxis + (opposite ? plotWidth : 0) + offset +
@@ -5759,7 +5761,7 @@ function Chart(options, callback) {
 						offAxis - (opposite ? plotHeight : 0) + offset :
 						alongAxis + (axisTitleOptions.y || 0) // y
 				});
-
+				axisTitle.isNew = false;
 			}
 
 			// Stacked totals:
@@ -7133,11 +7135,13 @@ function Chart(options, callback) {
 					})
 					.add(legendGroup)
 					.shadow(options.shadow);
+					box.isNew = true;
 
 				} else if (legendWidth > 0 && legendHeight > 0) {
-					box.animate(
+					box[box.isNew ? 'attr' : 'animate'](
 						box.crisp(null, null, null, legendWidth, legendHeight)
 					);
+					box.isNew = false;
 				}
 
 				// hide the border if no items
@@ -7156,10 +7160,12 @@ function Chart(options, callback) {
 				}
 			}
 
-			legendGroup.align(extend(options, {
-				width: legendWidth,
-				height: legendHeight
-			}), true, spacingBox);
+			if (allItems.length) {
+				legendGroup.align(extend(options, {
+					width: legendWidth,
+					height: legendHeight
+				}), true, spacingBox);
+			}
 
 			if (!isResizing) {
 				positionCheckboxes();
@@ -9518,7 +9524,8 @@ Series.prototype = {
 				x,
 				y,
 				data = series.data,
-				options = series.options.dataLabels,
+				seriesOptions = series.options,
+				options = seriesOptions.dataLabels,
 				str,
 				dataLabelsGroup = series.dataLabelsGroup,
 				chart = series.chart,
@@ -9526,7 +9533,7 @@ Series.prototype = {
 				inverted = chart.inverted,
 				seriesType = series.type,
 				color,
-				stacking = series.options.stacking,
+				stacking = seriesOptions.stacking,
 				isBarLike = seriesType === 'column' || seriesType === 'bar',
 				vAlignIsNull = options.verticalAlign === null,
 				yIsNull = options.y === null;
@@ -9635,7 +9642,7 @@ Series.prototype = {
 					dataLabel[chart.isInsidePlot(plotX, plotY) ? 'show' : 'hide']();
 				}*/
 
-				if (isBarLike && series.options.stacking) {
+				if (isBarLike && seriesOptions.stacking && dataLabel) {
 					var barY = point.barY,
 						barW = point.barW,
 						barH = point.barH;
