@@ -20,8 +20,7 @@ var doc = document,
 	docMode8 = doc.documentMode === 8,
 	isWebKit = /AppleWebKit/.test(userAgent),
 	isFirefox = /Firefox/.test(userAgent),
-	//hasSVG = win.SVGAngle || doc.implementation.hasFeature("http://www.w3.org/TR/SVG11/feature#BasicStructure", "1.1"),
-	hasSVG = !!doc.createElementNS && !!doc.createElementNS("http://www.w3.org/2000/svg", "svg").createSVGRect,
+	hasSVG = !!doc.createElementNS && !!doc.createElementNS(SVG_NS, 'svg').createSVGRect,
 	useCanVG = !hasSVG && !isIE && !!doc.createElement('canvas').getContext,
 	SVG_NS = 'http://www.w3.org/2000/svg',
 	Renderer,
@@ -96,5 +95,4 @@ var doc = document,
 	stop = adapter.stop,
 
 	// lookup over the types and the associated classes
-	seriesTypes = {},
-	hoverChart;
+	seriesTypes = {};
