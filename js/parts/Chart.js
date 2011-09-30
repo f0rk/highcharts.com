@@ -93,26 +93,25 @@ function Chart(options, callback) {
 	 * @param {Object} chart
 	 * @param {Object} options
 	 */
-	function Axis(chart, options) {
+	function Axis(chart, userOptions) {
 
 		// Define variables
-		var isXAxis = options.isX,
-			opposite = options.opposite, // needed in setOptions
+		var isXAxis = userOptions.isX,
+			opposite = userOptions.opposite, // needed in setOptions
 			horiz = inverted ? !isXAxis : isXAxis,
 			side = horiz ?
 				(opposite ? 0 : 2) : // top : bottom
 				(opposite ? 1 : 3),  // right : left
-			stacks = {};
-
+			stacks = {},
 
 		options = merge(
 				isXAxis ? defaultXAxisOptions : defaultYAxisOptions,
 				[defaultTopAxisOptions, defaultRightAxisOptions,
 					defaultBottomAxisOptions, defaultLeftAxisOptions][side],
-				options
-			);
+				userOptions
+			),
 
-		var axis = this,
+			axis = this,
 			axisTitle,
 			type = options.type,
 			isDatetimeAxis = type === 'datetime',
@@ -214,6 +213,7 @@ function Chart(options, callback) {
 						plotWidth / categories.length) ||
 						(!horiz && plotWidth / 2),
 					css,
+					value = categories && defined(categories[pos]) ? categories[pos] : pos,
 					label = this.label;
 
 
@@ -222,7 +222,7 @@ function Chart(options, callback) {
 						isFirst: pos === tickPositions[0],
 						isLast: pos === tickPositions[tickPositions.length - 1],
 						dateTimeLabelFormat: dateTimeLabelFormat,
-						value: (categories && categories[pos] ? categories[pos] : pos)
+						value: isLog ? lin2log(value) : value
 					});
 
 
@@ -315,13 +315,19 @@ function Chart(options, callback) {
 						if (dashStyle) {
 							attribs.dashstyle = dashStyle;
 						}
+						if (major) {
+							attribs.zIndex = 1;
+						}
 						tick.gridLine = gridLine =
 							gridLineWidth ?
 								renderer.path(gridLinePath)
 									.attr(attribs).add(gridGroup) :
 								null;
 					}
-					if (gridLine && gridLinePath) {
+
+					// If the parameter 'old' is set, the current call will be followed
+					// by another call, therefore do not do any animations this time
+					if (!old && gridLine && gridLinePath) {
 						gridLine.animate({
 							d: gridLinePath
 						});
@@ -1761,7 +1767,7 @@ function Chart(options, callback) {
 		 */
 		function setCategories(newCategories, doRedraw) {
 				// set the categories
-				axis.categories = categories = newCategories;
+				axis.categories = userOptions.categories = categories = newCategories;
 
 				// force reindexing tooltips
 				each(associatedSeries, function (series) {
@@ -2491,7 +2497,7 @@ function Chart(options, callback) {
 									0
 								)
 								.attr({
-									fill: 'rgba(69,114,167,0.25)',
+									fill: optionsChart.selectionMarkerFill || 'rgba(69,114,167,0.25)',
 									zIndex: 7
 								})
 								.add();
@@ -2541,9 +2547,12 @@ function Chart(options, callback) {
 			// The mouseleave event above does not always fire. Whenever the mouse is moving
 			// outside the plotarea, hide the tooltip
 			addEvent(doc, 'mousemove', function (e) {
+				var pageX = defined(e.pageX) ? e.pageX : e.page.x, // In mootools the event is wrapped and the page x/y position is named e.page.x
+					pageY = defined(e.pageX) ? e.pageY : e.page.y; // Ref: http://mootools.net/docs/core/Types/DOMEvent
+
 				if (chartPosition &&
-						!isInsidePlot(e.pageX - chartPosition.left - plotLeft,
-							e.pageY - chartPosition.top - plotTop)) {
+						!isInsidePlot(pageX - chartPosition.left - plotLeft,
+							pageY - chartPosition.top - plotTop)) {
 					resetTracker();
 				}
 			});
@@ -2692,8 +2701,6 @@ function Chart(options, callback) {
 			itemHoverStyle = options.itemHoverStyle,
 			itemHiddenStyle = options.itemHiddenStyle,
 			padding = pInt(style.padding),
-			rightPadding = 20,
-			//lineHeight = options.lineHeight || 16,
 			y = 18,
 			initialItemX = 4 + padding + symbolWidth + symbolPadding,
 			itemX,
@@ -2949,7 +2956,7 @@ function Chart(options, callback) {
 			bBox = li.getBBox();
 
 			itemWidth = item.legendItemWidth =
-				options.itemWidth || symbolWidth + symbolPadding + bBox.width + rightPadding;
+				options.itemWidth || symbolWidth + symbolPadding + bBox.width + padding;
 			itemHeight = bBox.height;
 
 			// if the item exceeds the width, start a new line
