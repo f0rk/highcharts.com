@@ -90,10 +90,9 @@ function Chart(options, callback) {
 
 	/**
 	 * Create a new axis object
-	 * @param {Object} chart
 	 * @param {Object} options
 	 */
-	function Axis(chart, userOptions) {
+	function Axis(userOptions) {
 
 		// Define variables
 		var isXAxis = userOptions.isX,
@@ -237,7 +236,8 @@ function Chart(options, callback) {
 							renderer.text(
 									str,
 									0,
-									0
+									0,
+									labelOptions.useHTML
 								)
 								.attr({
 									align: labelOptions.align,
@@ -403,13 +403,7 @@ function Chart(options, callback) {
 			 * Destructor for the tick prototype
 			 */
 			destroy: function () {
-				var tick = this,
-					n;
-				for (n in tick) {
-					if (tick[n] && tick[n].destroy) {
-						tick[n].destroy();
-					}
-				}
+				destroyObjectProperties(this);
 			}
 		};
 
@@ -441,8 +435,9 @@ function Chart(options, callback) {
 				label = plotLine.label,
 				width = options.width,
 				to = options.to,
-				toPath, // bands only
 				from = options.from,
+				value = options.value,
+				toPath, // bands only
 				dashStyle = options.dashStyle,
 				svgElem = plotLine.svgElem,
 				path = [],
@@ -457,9 +452,16 @@ function Chart(options, callback) {
 				events = options.events,
 				attribs;
 
+			// logarithmic conversion
+			if (isLog) {
+				from = log2lin(from);
+				to = log2lin(to);
+				value = log2lin(value);
+			}
+
 			// plot line
 			if (width) {
-				path = getPlotLinePath(options.value, width);
+				path = getPlotLinePath(value, width);
 				attribs = {
 					stroke: color,
 					'stroke-width': width
@@ -577,15 +579,10 @@ function Chart(options, callback) {
 		 * Remove the plot line or band
 		 */
 		destroy: function () {
-			var obj = this,
-				n;
+			var obj = this;
 
-			for (n in obj) {
-				if (obj[n] && obj[n].destroy) {
-					obj[n].destroy(); // destroy SVG wrappers
-				}
-				delete obj[n];
-			}
+			destroyObjectProperties(obj);
+
 			// remove it from the lookup
 			erase(plotLinesAndBands, obj);
 		}
@@ -594,7 +591,7 @@ function Chart(options, callback) {
 		/**
 		 * The class for stack items
 		 */
-		function StackItem(options, isNegative, x) {
+		function StackItem(options, isNegative, x, stackOption) {
 			var stackItem = this;
 
 			// Tells if the stack is negative
@@ -605,6 +602,9 @@ function Chart(options, callback) {
 
 			// Save the x value to be able to position the label later
 			stackItem.x = x;
+
+			// Save the stack option on the series configuration object
+			stackItem.stack = stackOption;
 
 			// The align options and text align varies on whether the stack is negative and
 			// if the chart is inverted or not.
@@ -620,6 +620,10 @@ function Chart(options, callback) {
 		}
 
 		StackItem.prototype = {
+			destroy: function () {
+				destroyObjectProperties(this);
+			},
+
 			/**
 			 * Sets the total of this stack. Should be called when a serie is hidden or shown
 			 * since that will affect the total of other stacks.
@@ -726,6 +730,7 @@ function Chart(options, callback) {
 						posPointStack,
 						negPointStack,
 						stackKey,
+						stackOption,
 						negKey;
 
 					if (!isXAxis) {
@@ -734,7 +739,8 @@ function Chart(options, callback) {
 
 						// create a stack for this particular series type
 						if (stacking) {
-							stackKey = serie.type + pick(serie.options.stack, '');
+							stackOption = serie.options.stack;
+							stackKey = serie.type + pick(stackOption, '');
 							negKey = '-' + stackKey;
 							serie.stackKey = stackKey; // used in translate
 
@@ -797,7 +803,7 @@ function Chart(options, callback) {
 									// If the StackItem is there, just update the values,
 									// if not, create one first
 									if (!stacks[key][pointX]) {
-										stacks[key][pointX] = new StackItem(options.stackLabels, isNegative, pointX);
+										stacks[key][pointX] = new StackItem(options.stackLabels, isNegative, pointX, stackOption);
 									}
 									stacks[key][pointX].setTotal(totalPos);
 								}
@@ -1470,7 +1476,8 @@ function Chart(options, callback) {
 					axisTitle = axis.axisTitle = renderer.text(
 						axisTitleOptions.text,
 						0,
-						0
+						0,
+						axisTitleOptions.useHTML
 					)
 					.attr({
 						zIndex: 7,
@@ -1784,6 +1791,40 @@ function Chart(options, callback) {
 				}
 		}
 
+		/**
+		 * Destroys an Axis instance.
+		 */
+		function destroy() {
+			var stackKey;
+
+			// Remove the events
+			removeEvent(axis);
+
+			// Destroy each stack total
+			for (stackKey in stacks) {
+				destroyObjectProperties(stacks[stackKey]);
+
+				stacks[stackKey] = null;
+			}
+
+			// Destroy stack total group
+			if (axis.stackTotalGroup) {
+				axis.stackTotalGroup = axis.stackTotalGroup.destroy();
+			}
+
+			// Destroy collections
+			each([ticks, minorTicks, alternateBands, plotLinesAndBands], function (coll) {
+				destroyObjectProperties(coll);
+			});
+
+			// Destroy local variables
+			each([axisLine, axisGroup, gridGroup, axisTitle], function (obj) {
+				if (obj) {
+					obj.destroy();
+				}
+			});
+			axisLine = axisGroup = gridGroup = axisTitle = null;
+		}
 
 
 		// Run Axis
@@ -1817,7 +1858,8 @@ function Chart(options, callback) {
 			removePlotBand: removePlotBandOrLine,
 			removePlotLine: removePlotBandOrLine,
 			reversed: reversed,
-			stacks: stacks
+			stacks: stacks,
+			destroy: destroy
 		});
 
 		// register event listeners
@@ -1913,12 +1955,31 @@ function Chart(options, callback) {
 				})
 				.add(group)
 				.shadow(options.shadow),
-			label = renderer.text('', padding + boxOffLeft, pInt(style.fontSize) + padding + boxOffLeft)
+			label = renderer.text('', padding + boxOffLeft, pInt(style.fontSize) + padding + boxOffLeft, options.useHTML)
 				.attr({ zIndex: 1 })
 				.css(style)
 				.add(group);
 
 		group.hide();
+
+		/**
+		 * Destroy the tooltip and its elements.
+		 */
+		function destroy() {
+			each(crosshairs, function (crosshair) {
+				if (crosshair) {
+					crosshair.destroy();
+				}
+			});
+
+			// Destroy and clear local variables
+			each([box, label, group], function (obj) {
+				if (obj) {
+					obj.destroy();
+				}
+			});
+			box = label = group = null;
+		}
 
 		/**
 		 * In case no user defined formatter is given, this will be used
@@ -2146,16 +2207,16 @@ function Chart(options, callback) {
 		return {
 			shared: shared,
 			refresh: refresh,
-			hide: hide
+			hide: hide,
+			destroy: destroy
 		};
 	}
 
 	/**
 	 * The mouse tracker object
-	 * @param {Object} chart
 	 * @param {Object} options
 	 */
-	function MouseTracker(chart, options) {
+	function MouseTracker(options) {
 
 
 		var mouseDownX,
@@ -2393,11 +2454,24 @@ function Chart(options, callback) {
 		}
 
 		/**
+		 * Special handler for mouse move that will hide the tooltip when the mouse leaves the plotarea.
+		 */
+		function hideTooltipOnMouseMove(e) {
+			var pageX = defined(e.pageX) ? e.pageX : e.page.x, // In mootools the event is wrapped and the page x/y position is named e.page.x
+				pageY = defined(e.pageX) ? e.pageY : e.page.y; // Ref: http://mootools.net/docs/core/Types/DOMEvent
+
+			if (chartPosition &&
+					!isInsidePlot(pageX - chartPosition.left - plotLeft,
+						pageY - chartPosition.top - plotTop)) {
+				resetTracker();
+			}
+		}
+
+		/**
 		 * Set the JS events on the container element
 		 */
 		function setDOMEvents() {
 			var lastWasOutsidePlot = true;
-
 			/*
 			 * Record the starting position of a dragoperation
 			 */
@@ -2546,17 +2620,7 @@ function Chart(options, callback) {
 			// issue #149 workaround
 			// The mouseleave event above does not always fire. Whenever the mouse is moving
 			// outside the plotarea, hide the tooltip
-			addEvent(doc, 'mousemove', function (e) {
-				var pageX = defined(e.pageX) ? e.pageX : e.page.x, // In mootools the event is wrapped and the page x/y position is named e.page.x
-					pageY = defined(e.pageX) ? e.pageY : e.page.y; // Ref: http://mootools.net/docs/core/Types/DOMEvent
-
-				if (chartPosition &&
-						!isInsidePlot(pageX - chartPosition.left - plotLeft,
-							pageY - chartPosition.top - plotTop)) {
-					resetTracker();
-				}
-			});
-
+			addEvent(doc, 'mousemove', hideTooltipOnMouseMove);
 
 			container.ontouchstart = function (e) {
 				// For touch devices, use touchmove to zoom
@@ -2631,6 +2695,19 @@ function Chart(options, callback) {
 		}
 
 		/**
+		 * Destroys the MouseTracker object and disconnects DOM events.
+		 */
+		function destroy() {
+			// Destroy the tracker group element
+			if (chart.trackerGroup) {
+				chart.trackerGroup = trackerGroup = chart.trackerGroup.destroy();
+			}
+
+			removeEvent(doc, 'mousemove', hideTooltipOnMouseMove);
+			container.onclick = container.onmousedown = container.onmousemove = container.ontouchstart = container.ontouchend = container.ontouchmove = null;
+		}
+
+		/**
 		 * Create the image map that listens for mouseovers
 		 */
 		placeTrackerGroup = function () {
@@ -2674,7 +2751,8 @@ function Chart(options, callback) {
 		extend(this, {
 			zoomX: zoomX,
 			zoomY: zoomY,
-			resetTracker: resetTracker
+			resetTracker: resetTracker,
+			destroy: destroy
 		});
 	}
 
@@ -2682,9 +2760,8 @@ function Chart(options, callback) {
 
 	/**
 	 * The overview of the chart's series
-	 * @param {Object} chart
 	 */
-	var Legend = function (chart) {
+	var Legend = function () {
 
 		var options = chart.options.legend;
 
@@ -2802,6 +2879,18 @@ function Chart(options, callback) {
 
 		}
 
+		/**
+		 * Destroys the legend.
+		 */
+		function destroy() {
+			if (box) {
+				box = box.destroy();
+			}
+
+			if (legendGroup) {
+				legendGroup = legendGroup.destroy();
+			}
+		}
 
 		/**
 		 * Position the checkboxes after the width is determined
@@ -3110,7 +3199,8 @@ function Chart(options, callback) {
 		return {
 			colorizeItem: colorizeItem,
 			destroyItem: destroyItem,
-			renderLegend: renderLegend
+			renderLegend: renderLegend,
+			destroy: destroy
 		};
 	};
 
@@ -3450,7 +3540,7 @@ function Chart(options, callback) {
 		chart.xAxis = [];
 		chart.yAxis = [];
 		axes = map(axes, function (axisOptions) {
-			axis = new Axis(chart, axisOptions);
+			axis = new Axis(axisOptions);
 			chart[axis.isXAxis ? 'xAxis' : 'yAxis'].push(axis);
 
 			return axis;
@@ -3544,14 +3634,14 @@ function Chart(options, callback) {
 				chartTitleOptions = arr[2];
 
 			if (title && titleOptions) {
-				title.destroy(); // remove old
-				title = null;
+				title = title.destroy(); // remove old
 			}
 			if (chartTitleOptions && chartTitleOptions.text && !title) {
 				chart[name] = renderer.text(
 					chartTitleOptions.text,
 					0,
-					0
+					0,
+					chartTitleOptions.useHTML
 				)
 				.attr({
 					align: chartTitleOptions.align,
@@ -3781,6 +3871,15 @@ function Chart(options, callback) {
 	}
 
 	/**
+	 * Fires endResize event on chart instance.
+	 */
+	function fireEndResize() {
+		fireEvent(chart, 'endResize', null, function () {
+			isResizing -= 1;
+		});
+	}
+
+	/**
 	 * Resize the chart to a given width and height
 	 * @param {Number} width
 	 * @param {Number} height
@@ -3842,11 +3941,12 @@ function Chart(options, callback) {
 		fireEvent(chart, 'resize');
 
 		// fire endResize and set isResizing back
-		setTimeout(function () {
-			fireEvent(chart, 'endResize', null, function () {
-				isResizing -= 1;
-			});
-		}, (globalAnimation && globalAnimation.duration) || 500);
+		// If animation is disabled, fire without delay
+		if (globalAnimation === false) {
+			fireEndResize();
+		} else { // else set a timeout with the animation duration
+			setTimeout(fireEndResize, (globalAnimation && globalAnimation.duration) || 500);
+		}
 	};
 
 	/**
@@ -3976,7 +4076,7 @@ function Chart(options, callback) {
 
 
 		// Legend
-		legend = chart.legend = new Legend(chart);
+		legend = chart.legend = new Legend();
 
 		// Get margins by pre-rendering axes
 		getMargins();
@@ -4036,13 +4136,13 @@ function Chart(options, callback) {
 
 		// Toolbar (don't redraw)
 		if (!chart.toolbar) {
-			chart.toolbar = Toolbar(chart);
+			chart.toolbar = Toolbar();
 		}
 
 		// Credits
 		if (credits.enabled && !chart.credits) {
 			creditsHref = credits.href;
-			renderer.text(
+			chart.credits = renderer.text(
 				credits.text,
 				0,
 				0
@@ -4078,8 +4178,15 @@ function Chart(options, callback) {
 	 * Clean up memory usage
 	 */
 	function destroy() {
-		var i = series.length,
+		var i,
 			parentNode = container && container.parentNode;
+
+		// If the chart is destroyed already, do nothing.
+		// This will happen if if a script invokes chart.destroy and
+		// then it will be called again on win.unload
+		if (chart === null) {
+			return;
+		}
 
 		// fire the chart.destoy event
 		fireEvent(chart, 'destroy');
@@ -4088,14 +4195,35 @@ function Chart(options, callback) {
 		removeEvent(win, 'unload', destroy);
 		removeEvent(chart);
 
-		each(axes, function (axis) {
-			removeEvent(axis);
+		// ==== Destroy collections:
+		// Destroy axes
+		i = axes.length;
+		while (i--) {
+			axes[i] = axes[i].destroy();
+		}
+
+		// Destroy each series
+		i = series.length;
+		while (i--) {
+			series[i] = series[i].destroy();
+		}
+
+		// ==== Destroy chart properties:
+		each(['title', 'subtitle', 'seriesGroup', 'clipRect', 'credits', 'tracker'], function (name) {
+			var prop = chart[name];
+
+			if (prop) {
+				chart[name] = prop.destroy();
+			}
 		});
 
-		// destroy each series
-		while (i--) {
-			series[i].destroy();
+		// ==== Destroy local variables:
+		each([chartBackground, legend, tooltip, renderer, tracker], function (obj) {
+			if (obj && obj.destroy) {
+				obj.destroy();
 		}
+		});
+		chartBackground = legend = tooltip = renderer = tracker = null;
 
 		// remove container and all SVG
 		if (container) { // can break in IE when destroyed before finished loading
@@ -4109,11 +4237,6 @@ function Chart(options, callback) {
 			container = null;
 		}
 
-		// IE7 leak
-		if (renderer) { // can break in IE when destroyed before finished loading
-			renderer.alignedObjects = null;
-		}
-
 		// memory and CPU leak
 		clearInterval(tooltipInterval);
 
@@ -4122,6 +4245,7 @@ function Chart(options, callback) {
 			delete chart[i];
 		}
 
+		chart = null;
 	}
 	/**
 	 * Prepare for first rendering after all data are loaded
@@ -4166,7 +4290,7 @@ function Chart(options, callback) {
 		chart.render = render;
 
 		// depends on inverted and on margins being set
-		chart.tracker = tracker = new MouseTracker(chart, options.tooltip);
+		chart.tracker = tracker = new MouseTracker(options.tooltip);
 
 		//globalAnimation = false;
 		render();

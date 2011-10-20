@@ -78,7 +78,7 @@ Point.prototype = {
 			prop;
 
 		series.chart.pointCount--;
-		
+
 		if (hoverPoints) {
 			point.setState();
 			erase(hoverPoints, point);
@@ -86,12 +86,12 @@ Point.prototype = {
 		if (point === series.chart.hoverPoint) {
 			point.onMouseOut();
 		}
-		
+
 
 		// remove all events
 		removeEvent(point);
 
-		each(['graphic', 'tracker', 'group', 'dataLabel', 'connector'], function (prop) {
+		each(['graphic', 'tracker', 'group', 'dataLabel', 'connector', 'shadowGroup'], function (prop) {
 			if (point[prop]) {
 				point[prop].destroy();
 			}
@@ -140,7 +140,7 @@ Point.prototype = {
 		point.firePointEvent(selected ? 'select' : 'unselect', { accumulate: accumulate }, function () {
 			point.selected = selected;
 			point.setState(selected && SELECT_STATE);
-	
+
 			// unselect all other points unless Ctrl or Cmd + click
 			if (!accumulate) {
 				each(chart.getSelectedPoints(), function (loopPoint) {
@@ -1124,6 +1124,7 @@ Series.prototype = {
 	destroy: function () {
 		var series = this,
 			chart = series.chart,
+			seriesClipRect = series.clipRect,
 			//chartSeries = series.chart.series,
 			issue134 = /\/5[0-9\.]+ (Safari|Mobile)\//.test(userAgent), // todo: update when Safari bug is fixed
 			destroy,
@@ -1144,6 +1145,13 @@ Series.prototype = {
 		each(series.data, function (point) {
 			point.destroy();
 		});
+
+		// If this series clipRect is not the global one (which is removed on chart.destroy) we
+		// destroy it here.
+		if (seriesClipRect && seriesClipRect !== chart.clipRect) {
+			series.clipRect = seriesClipRect.destroy();
+		}
+
 		// destroy all SVGElements associated to the series
 		each(['area', 'graph', 'dataLabelsGroup', 'group', 'tracker'], function (prop) {
 			if (series[prop]) {

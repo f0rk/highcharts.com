@@ -2,7 +2,7 @@
 // @compilation_level SIMPLE_OPTIMIZATIONS
 
 /**
- * @license Highcharts JS v2.1.6 (2011-07-08)
+ * @license Highcharts JS v2.1.7 (2011-10-19)
  *
  * (c) 2009-2011 Torstein Hønsi
  *
@@ -35,9 +35,10 @@ var doc = document,
 	docMode8 = doc.documentMode === 8,
 	isWebKit = /AppleWebKit/.test(userAgent),
 	isFirefox = /Firefox/.test(userAgent),
-	hasSVG = !!doc.createElementNS && !!doc.createElementNS(SVG_NS, 'svg').createSVGRect,
-	useCanVG = !hasSVG && !isIE && !!doc.createElement('canvas').getContext,
 	SVG_NS = 'http://www.w3.org/2000/svg',
+	hasSVG = !!doc.createElementNS && !!doc.createElementNS(SVG_NS, 'svg').createSVGRect,
+	hasRtlBug = isFirefox && parseInt(userAgent.split('Firefox/')[1], 10) < 4, // issue #38
+	useCanVG = !hasSVG && !isIE && !!doc.createElement('canvas').getContext,
 	Renderer,
 	hasTouch = doc.documentElement.ontouchstart !== undefined,
 	symbolSizes = {},
@@ -153,6 +154,14 @@ function isObject(obj) {
 }
 
 /**
+ * Check for array
+ * @param {Object} obj
+ */
+function isArray(obj) {
+	return Object.prototype.toString.call(obj) === '[object Array]';
+}
+
+/**
  * Check for number
  * @param {Object} n
  */
@@ -229,12 +238,8 @@ function attr(elem, prop, value) {
  * MooTools' $.splat.
  */
 function splat(obj) {
-	if (!obj || obj.constructor !== Array) {
-		obj = [obj];
-	}
-	return obj;
+	return isArray(obj) ? obj : [obj];
 }
-
 
 
 /**
@@ -266,23 +271,6 @@ function css(el, styles) {
 	}
 	extend(el.style, styles);
 }
-
-/* *
- * Get CSS value on a given element
- * @param {Object} el DOM object
- * @param {String} styleProp Camel cased CSS propery
- * /
-function getStyle (el, styleProp) {
-	var ret,
-		CURRENT_STYLE = 'currentStyle',
-		GET_COMPUTED_STYLE = 'getComputedStyle';
-	if (el[CURRENT_STYLE]) {
-		ret = el[CURRENT_STYLE][styleProp];
-	} else if (win[GET_COMPUTED_STYLE]) {
-		ret = win[GET_COMPUTED_STYLE](el, null).getPropertyValue(hyphenate(styleProp));
-	}
-	return ret;
-}*/
 
 /**
  * Utility function to create element with attributes and styles
@@ -369,7 +357,6 @@ dateFormat = function (format, timestamp, capitalize) {
 		fullYear = date[getFullYear](),
 		lang = defaultOptions.lang,
 		langWeekdays = lang.weekdays,
-		langMonths = lang.months,
 		/* // uncomment this and the 'W' format key below to enable week numbers
 		weekNumber = function() {
 			var clone = new Date(date.valueOf()),
@@ -394,8 +381,8 @@ dateFormat = function (format, timestamp, capitalize) {
 			//'W': weekNumber(),
 
 			// Month
-			'b': langMonths[month].substr(0, 3), // Short month, like 'Jan'
-			'B': langMonths[month], // Long month, like 'January'
+			'b': lang.shortMonths[month], // Short month, like 'Jan'
+			'B': lang.months[month], // Long month, like 'January'
 			'm': pad(month + 1), // Two digit month number, 01 through 12
 
 			// Year
@@ -480,12 +467,15 @@ ChartCounters.prototype = {
  */
 function placeBox(boxWidth, boxHeight, outerLeft, outerTop, outerWidth, outerHeight, point) {
 	// keep the box within the chart area
-	var x = point.x - boxWidth + outerLeft - 25,
-		y = point.y - boxHeight + outerTop + 10;
+	var pointX = point.x,
+		pointY = point.y,
+		x = pointX - boxWidth + outerLeft - 25,
+		y = pointY - boxHeight + outerTop + 10,
+		alignedRight;
 
 	// it is too far to the left, adjust it
 	if (x < 7) {
-		x = outerLeft + point.x + 15;
+		x = outerLeft + pointX + 15;
 	}
 
 	// Test to see if the tooltip is to far to the right,
@@ -493,14 +483,15 @@ function placeBox(boxWidth, boxHeight, outerLeft, outerTop, outerWidth, outerHei
 	if ((x + boxWidth) > (outerLeft + outerWidth)) {
 		x -= (x + boxWidth) - (outerLeft + outerWidth);
 		y -= boxHeight;
+		alignedRight = true;
 	}
 
 	if (y < 5) {
 		y = 5; // above
 
 		// If the tooltip is still covering the point, move it below instead
-		if (point.y >= y && point.y <= (y + boxHeight)) {
-			y = point.y + boxHeight - 5; // below
+		if (alignedRight && pointY >= y && pointY <= (y + boxHeight)) {
+			y = pointY + boxHeight - 5; // below
 		}
 	} else if (y + boxHeight > outerTop + outerHeight) {
 		y = outerTop + outerHeight - boxHeight - 5; // below
@@ -530,6 +521,25 @@ function stableSort(arr, sortFunction) {
 	// Remove index from items
 	for (i = 0; i < length; i++) {
 		delete arr[i].ss_i; // stable sort index
+	}
+}
+
+/**
+ * Utility method that destroys any SVGElement or VMLElement that are properties on the given object.
+ * It loops all properties and invokes destroy if there is a destroy method. The property is
+ * then delete'ed.
+ */
+function destroyObjectProperties(obj) {
+	var n;
+	for (n in obj) {
+		// If the object is non-null and destroy is defined
+		if (obj[n] && obj[n].destroy) {
+			// Invoke the destroy
+			obj[n].destroy();
+		}
+
+		// Delete the property from the object.
+		delete obj[n];
 	}
 }
 
@@ -944,6 +954,7 @@ defaultOptions = {
 		loading: 'Loading...',
 		months: ['January', 'February', 'March', 'April', 'May', 'June', 'July',
 				'August', 'September', 'October', 'November', 'December'],
+		shortMonths: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'June', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
 		weekdays: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
 		decimalPoint: '.',
 		resetZoom: 'Reset zoom',
@@ -994,7 +1005,7 @@ defaultOptions = {
 		// margin: 15,
 		// x: 0,
 		// verticalAlign: 'top',
-		y: 15, // docs
+		y: 15,
 		style: {
 			color: '#3E576F',
 			fontSize: '16px'
@@ -1007,7 +1018,7 @@ defaultOptions = {
 		// floating: false
 		// x: 0,
 		// verticalAlign: 'top',
-		y: 30, // docs
+		y: 30,
 		style: {
 			color: '#6D869F'
 		}
@@ -1020,12 +1031,12 @@ defaultOptions = {
 			animation: {
 				duration: 1000
 			},
-			// connectNulls: false, // docs
+			//connectNulls: false,
 			//cursor: 'default',
 			//dashStyle: null,
 			//enableMouseTracking: true,
 			events: {},
-			//legendIndex: 0, // docs (+ pie points)
+			//legendIndex: 0,
 			lineWidth: 2,
 			shadow: true,
 			// stacking: null,
@@ -1094,7 +1105,6 @@ defaultOptions = {
 		labelFormatter: function () {
 			return this.name;
 		},
-		// lineHeight: 16, // docs: deprecated
 		borderWidth: 1,
 		borderColor: '#909090',
 		borderRadius: 5,
@@ -1126,8 +1136,8 @@ defaultOptions = {
 		symbolPadding: 5,
 		verticalAlign: 'bottom',
 		// width: undefined,
-		x: 0, // docs
-		y: 0 // docs
+		x: 0,
+		y: 0
 	},
 
 	loading: {
@@ -1266,7 +1276,7 @@ var defaultXAxisOptions =  {
 		//x: 0,
 		//y: 0
 	},
-	type: 'linear' // linear, logarithmic or datetime // docs
+	type: 'linear' // linear, logarithmic or datetime
 },
 
 defaultYAxisOptions = merge(defaultXAxisOptions, {
@@ -1307,7 +1317,7 @@ defaultLeftAxisOptions = {
 	labels: {
 		align: 'right',
 		x: -8,
-		y: null // docs
+		y: null
 	},
 	title: {
 		rotation: 270
@@ -1317,7 +1327,7 @@ defaultRightAxisOptions = {
 	labels: {
 		align: 'left',
 		x: 8,
-		y: null // docs
+		y: null
 	},
 	title: {
 		rotation: 90
@@ -1407,14 +1417,14 @@ defaultPlotOptions.pie = merge(defaultSeriesOptions, {
 	dataLabels: {
 		// align: null,
 		// connectorWidth: 1,
-		// connectorColor: point.color, // docs
+		// connectorColor: point.color,
 		// connectorPadding: 5,
 		distance: 30,
 		enabled: true,
 		formatter: function () {
 			return this.point.name;
 		},
-		// softConnector: true, // docs
+		// softConnector: true,
 		y: 5
 	},
 	//innerSize: 0,
@@ -1575,6 +1585,7 @@ SVGElement.prototype = {
 			renderer = this.renderer,
 			skipAttr,
 			shadows = this.shadows,
+			htmlNode = this.htmlNode,
 			hasSetSymbolSize,
 			ret = this;
 
@@ -1743,6 +1754,33 @@ SVGElement.prototype = {
 				} else if (!skipAttr) {
 					//element.setAttribute(key, value);
 					attr(element, key, value);
+				}
+
+				// Issue #38
+				if (htmlNode && (key === 'x' || key === 'y' ||
+						key === 'translateX' || key === 'translateY' || key === 'visibility')) {
+					var wrapper = this,
+						bBox,
+						arr = htmlNode.length ? htmlNode : [this],
+						length = arr.length,
+						itemWrapper,
+						j;
+					
+					for (j = 0; j < length; j++) {
+						itemWrapper = arr[j];
+						bBox = itemWrapper.getBBox();
+						htmlNode = itemWrapper.htmlNode; // reassign to child item
+						css(htmlNode, extend(wrapper.styles, {
+							left: (bBox.x + (wrapper.translateX || 0)) + PX,
+							top: (bBox.y + (wrapper.translateY || 0)) + PX
+						}));
+
+						if (key === 'visibility') {
+							css(htmlNode, {
+								visibility: value
+							});
+						}
+					}
 				}
 
 			}
@@ -2109,6 +2147,14 @@ SVGElement.prototype = {
 			renderer.buildText(this);
 		}
 
+		// register html spans in groups
+		if (parent && this.htmlNode) {
+			if (!parent.htmlNode) {
+				parent.htmlNode = [];
+			}
+			parent.htmlNode.push(this);
+		}
+
 		// mark the container as having z indexed children
 		if (zIndex) {
 			parentWrapper.handleZ = true;
@@ -2149,11 +2195,24 @@ SVGElement.prototype = {
 			element = wrapper.element || {},
 			shadows = wrapper.shadows,
 			parentNode = element.parentNode,
-			key;
+			key,
+			i;
 
 		// remove events
 		element.onclick = element.onmouseout = element.onmouseover = element.onmousemove = null;
 		stop(wrapper); // stop running animations
+
+		if (wrapper.clipPath) {
+			wrapper.clipPath = wrapper.clipPath.destroy();
+		}
+
+		// Destroy stops in case this is a gradient object
+		if (wrapper.stops) {
+			for (i = 0; i < wrapper.stops.length; i++) {
+				wrapper.stops[i] = wrapper.stops[i].destroy();
+			}
+			wrapper.stops = null;
+		}
 
 		// remove element
 		if (parentNode) {
@@ -2271,11 +2330,41 @@ SVGRenderer.prototype = {
 		renderer.url = isIE ? '' : loc.href.replace(/#.*?$/, ''); // page url used for internal references
 		renderer.defs = this.createElement('defs').add();
 		renderer.forExport = forExport;
+		renderer.gradients = []; // Array where gradient SvgElements are stored
 
 		renderer.setSize(width, height, false);
 
 	},
 
+	/**
+	 * Destroys the renderer and its allocated members.
+	 */
+	destroy: function () {
+		var renderer = this,
+			i,
+			rendererGradients = renderer.gradients,
+			rendererDefs = renderer.defs;
+		renderer.box = null;
+		renderer.boxWrapper = renderer.boxWrapper.destroy();
+
+		// Call destroy on all gradient elements
+		if (rendererGradients) { // gradients are null in VMLRenderer
+			for (i = 0; i < rendererGradients.length; i++) {
+				renderer.gradients[i] = rendererGradients[i].destroy();
+			}
+			renderer.gradients = null;
+		}
+
+		// Defs are null in VMLRenderer
+		// Otherwise, destroy them here.
+		if (rendererDefs) {
+			renderer.defs = rendererDefs.destroy();
+		}
+
+		renderer.alignedObjects = null;
+
+		return null;
+	},
 
 	/**
 	 * Create a wrapper for an SVG element
@@ -2310,9 +2399,9 @@ SVGRenderer.prototype = {
 			hrefRegex = /href="([^"]+)"/,
 			parentX = attr(textNode, 'x'),
 			textStyles = wrapper.styles,
-			reverse = isFirefox && textStyles && textStyles.HcDirection === 'rtl' &&
-				!this.forExport && pInt(userAgent.split('Firefox/')[1]) < 4, // issue #38
-			arr,
+			renderAsHtml = textStyles && wrapper.useHTML && !this.forExport,
+			htmlNode = wrapper.htmlNode,
+			//arr, issue #38 workaround
 			width = textStyles && pInt(textStyles.width),
 			textLineHeight = textStyles && textStyles.lineHeight,
 			lastLine,
@@ -2355,14 +2444,14 @@ SVGRenderer.prototype = {
 						.replace(/&gt;/g, '>');
 
 					// issue #38 workaround.
-					if (reverse) {
+					/*if (reverse) {
 						arr = [];
 						i = span.length;
 						while (i--) {
 							arr.push(span.charAt(i));
 						}
 						span = arr.join('');
-					}
+					}*/
 
 					// add the text node
 					tspan.appendChild(doc.createTextNode(span));
@@ -2442,7 +2531,22 @@ SVGRenderer.prototype = {
 			});
 		});
 
+		// Fix issue #38 and allow HTML in tooltips and other labels
+		if (renderAsHtml) {
+			if (!htmlNode) {
+				htmlNode = wrapper.htmlNode = createElement('span', null, extend(textStyles, {
+					position: ABSOLUTE,
+					top: 0,
+					left: 0
+				}), this.box.parentNode);
+			}
+			htmlNode.innerHTML = wrapper.textStr;
 
+			i = childNodes.length;
+			while (i--) {
+				childNodes[i].style.visibility = HIDDEN;
+			}
+		}
 	},
 
 	/**
@@ -2810,6 +2914,7 @@ SVGRenderer.prototype = {
 
 		wrapper = this.rect(x, y, width, height, 0).add(clipPath);
 		wrapper.id = id;
+		wrapper.clipPath = clipPath;
 
 		return wrapper;
 	},
@@ -2841,7 +2946,13 @@ SVGRenderer.prototype = {
 				y2: linearGradient[3]
 			}).add(renderer.defs);
 
+			// Keep a reference to the gradient object so it is possible to destroy it later
+			renderer.gradients.push(gradientObject);
+
+			// The gradient needs to keep a list of stops to be able to destroy them
+			gradientObject.stops = [];
 			each(color.stops, function (stop) {
+				var stopObject;
 				if (regexRgba.test(stop[1])) {
 					colorObject = Color(stop[1]);
 					stopColor = colorObject.get('rgb');
@@ -2850,11 +2961,14 @@ SVGRenderer.prototype = {
 					stopColor = stop[1];
 					stopOpacity = 1;
 				}
-				renderer.createElement('stop').attr({
+				stopObject = renderer.createElement('stop').attr({
 					offset: stop[0],
 					'stop-color': stopColor,
 					'stop-opacity': stopOpacity
 				}).add(gradientObject);
+
+				// Add the stop element to the gradient
+				gradientObject.stops.push(stopObject);
 			});
 
 			return 'url(' + this.url + '#' + id + ')';
@@ -2882,8 +2996,9 @@ SVGRenderer.prototype = {
 	 * @param {String} str
 	 * @param {Number} x Left position
 	 * @param {Number} y Top position
+	 * @param {Boolean} useHTML Use HTML to render the text
 	 */
-	text: function (str, x, y) {
+	text: function (str, x, y, useHTML) {
 
 		// declare variables
 		var defaultChartStyle = defaultOptions.chart.style,
@@ -2905,6 +3020,7 @@ SVGRenderer.prototype = {
 
 		wrapper.x = x;
 		wrapper.y = y;
+		wrapper.useHTML = useHTML;
 		return wrapper;
 	}
 }; // end SVGRenderer
@@ -3274,7 +3390,7 @@ var VMLElement = extendClass(SVGElement, {
 			wrapper.destroyClip();
 		}
 
-		SVGElement.prototype.destroy.apply(wrapper);
+		return SVGElement.prototype.destroy.apply(wrapper);
 	},
 
 	/**
@@ -4180,10 +4296,9 @@ function Chart(options, callback) {
 
 	/**
 	 * Create a new axis object
-	 * @param {Object} chart
 	 * @param {Object} options
 	 */
-	function Axis(chart, userOptions) {
+	function Axis(userOptions) {
 
 		// Define variables
 		var isXAxis = userOptions.isX,
@@ -4327,7 +4442,8 @@ function Chart(options, callback) {
 							renderer.text(
 									str,
 									0,
-									0
+									0,
+									labelOptions.useHTML
 								)
 								.attr({
 									align: labelOptions.align,
@@ -4493,13 +4609,7 @@ function Chart(options, callback) {
 			 * Destructor for the tick prototype
 			 */
 			destroy: function () {
-				var tick = this,
-					n;
-				for (n in tick) {
-					if (tick[n] && tick[n].destroy) {
-						tick[n].destroy();
-					}
-				}
+				destroyObjectProperties(this);
 			}
 		};
 
@@ -4531,8 +4641,9 @@ function Chart(options, callback) {
 				label = plotLine.label,
 				width = options.width,
 				to = options.to,
-				toPath, // bands only
 				from = options.from,
+				value = options.value,
+				toPath, // bands only
 				dashStyle = options.dashStyle,
 				svgElem = plotLine.svgElem,
 				path = [],
@@ -4547,9 +4658,16 @@ function Chart(options, callback) {
 				events = options.events,
 				attribs;
 
+			// logarithmic conversion
+			if (isLog) {
+				from = log2lin(from);
+				to = log2lin(to);
+				value = log2lin(value);
+			}
+
 			// plot line
 			if (width) {
-				path = getPlotLinePath(options.value, width);
+				path = getPlotLinePath(value, width);
 				attribs = {
 					stroke: color,
 					'stroke-width': width
@@ -4667,15 +4785,10 @@ function Chart(options, callback) {
 		 * Remove the plot line or band
 		 */
 		destroy: function () {
-			var obj = this,
-				n;
+			var obj = this;
 
-			for (n in obj) {
-				if (obj[n] && obj[n].destroy) {
-					obj[n].destroy(); // destroy SVG wrappers
-				}
-				delete obj[n];
-			}
+			destroyObjectProperties(obj);
+
 			// remove it from the lookup
 			erase(plotLinesAndBands, obj);
 		}
@@ -4684,7 +4797,7 @@ function Chart(options, callback) {
 		/**
 		 * The class for stack items
 		 */
-		function StackItem(options, isNegative, x) {
+		function StackItem(options, isNegative, x, stackOption) {
 			var stackItem = this;
 
 			// Tells if the stack is negative
@@ -4695,6 +4808,9 @@ function Chart(options, callback) {
 
 			// Save the x value to be able to position the label later
 			stackItem.x = x;
+
+			// Save the stack option on the series configuration object
+			stackItem.stack = stackOption;
 
 			// The align options and text align varies on whether the stack is negative and
 			// if the chart is inverted or not.
@@ -4710,6 +4826,10 @@ function Chart(options, callback) {
 		}
 
 		StackItem.prototype = {
+			destroy: function () {
+				destroyObjectProperties(this);
+			},
+
 			/**
 			 * Sets the total of this stack. Should be called when a serie is hidden or shown
 			 * since that will affect the total of other stacks.
@@ -4816,6 +4936,7 @@ function Chart(options, callback) {
 						posPointStack,
 						negPointStack,
 						stackKey,
+						stackOption,
 						negKey;
 
 					if (!isXAxis) {
@@ -4824,7 +4945,8 @@ function Chart(options, callback) {
 
 						// create a stack for this particular series type
 						if (stacking) {
-							stackKey = serie.type + pick(serie.options.stack, '');
+							stackOption = serie.options.stack;
+							stackKey = serie.type + pick(stackOption, '');
 							negKey = '-' + stackKey;
 							serie.stackKey = stackKey; // used in translate
 
@@ -4887,7 +5009,7 @@ function Chart(options, callback) {
 									// If the StackItem is there, just update the values,
 									// if not, create one first
 									if (!stacks[key][pointX]) {
-										stacks[key][pointX] = new StackItem(options.stackLabels, isNegative, pointX);
+										stacks[key][pointX] = new StackItem(options.stackLabels, isNegative, pointX, stackOption);
 									}
 									stacks[key][pointX].setTotal(totalPos);
 								}
@@ -5560,7 +5682,8 @@ function Chart(options, callback) {
 					axisTitle = axis.axisTitle = renderer.text(
 						axisTitleOptions.text,
 						0,
-						0
+						0,
+						axisTitleOptions.useHTML
 					)
 					.attr({
 						zIndex: 7,
@@ -5874,6 +5997,40 @@ function Chart(options, callback) {
 				}
 		}
 
+		/**
+		 * Destroys an Axis instance.
+		 */
+		function destroy() {
+			var stackKey;
+
+			// Remove the events
+			removeEvent(axis);
+
+			// Destroy each stack total
+			for (stackKey in stacks) {
+				destroyObjectProperties(stacks[stackKey]);
+
+				stacks[stackKey] = null;
+			}
+
+			// Destroy stack total group
+			if (axis.stackTotalGroup) {
+				axis.stackTotalGroup = axis.stackTotalGroup.destroy();
+			}
+
+			// Destroy collections
+			each([ticks, minorTicks, alternateBands, plotLinesAndBands], function (coll) {
+				destroyObjectProperties(coll);
+			});
+
+			// Destroy local variables
+			each([axisLine, axisGroup, gridGroup, axisTitle], function (obj) {
+				if (obj) {
+					obj.destroy();
+				}
+			});
+			axisLine = axisGroup = gridGroup = axisTitle = null;
+		}
 
 
 		// Run Axis
@@ -5907,7 +6064,8 @@ function Chart(options, callback) {
 			removePlotBand: removePlotBandOrLine,
 			removePlotLine: removePlotBandOrLine,
 			reversed: reversed,
-			stacks: stacks
+			stacks: stacks,
+			destroy: destroy
 		});
 
 		// register event listeners
@@ -6003,12 +6161,31 @@ function Chart(options, callback) {
 				})
 				.add(group)
 				.shadow(options.shadow),
-			label = renderer.text('', padding + boxOffLeft, pInt(style.fontSize) + padding + boxOffLeft)
+			label = renderer.text('', padding + boxOffLeft, pInt(style.fontSize) + padding + boxOffLeft, options.useHTML)
 				.attr({ zIndex: 1 })
 				.css(style)
 				.add(group);
 
 		group.hide();
+
+		/**
+		 * Destroy the tooltip and its elements.
+		 */
+		function destroy() {
+			each(crosshairs, function (crosshair) {
+				if (crosshair) {
+					crosshair.destroy();
+				}
+			});
+
+			// Destroy and clear local variables
+			each([box, label, group], function (obj) {
+				if (obj) {
+					obj.destroy();
+				}
+			});
+			box = label = group = null;
+		}
 
 		/**
 		 * In case no user defined formatter is given, this will be used
@@ -6236,16 +6413,16 @@ function Chart(options, callback) {
 		return {
 			shared: shared,
 			refresh: refresh,
-			hide: hide
+			hide: hide,
+			destroy: destroy
 		};
 	}
 
 	/**
 	 * The mouse tracker object
-	 * @param {Object} chart
 	 * @param {Object} options
 	 */
-	function MouseTracker(chart, options) {
+	function MouseTracker(options) {
 
 
 		var mouseDownX,
@@ -6483,11 +6660,24 @@ function Chart(options, callback) {
 		}
 
 		/**
+		 * Special handler for mouse move that will hide the tooltip when the mouse leaves the plotarea.
+		 */
+		function hideTooltipOnMouseMove(e) {
+			var pageX = defined(e.pageX) ? e.pageX : e.page.x, // In mootools the event is wrapped and the page x/y position is named e.page.x
+				pageY = defined(e.pageX) ? e.pageY : e.page.y; // Ref: http://mootools.net/docs/core/Types/DOMEvent
+
+			if (chartPosition &&
+					!isInsidePlot(pageX - chartPosition.left - plotLeft,
+						pageY - chartPosition.top - plotTop)) {
+				resetTracker();
+			}
+		}
+
+		/**
 		 * Set the JS events on the container element
 		 */
 		function setDOMEvents() {
 			var lastWasOutsidePlot = true;
-
 			/*
 			 * Record the starting position of a dragoperation
 			 */
@@ -6636,17 +6826,7 @@ function Chart(options, callback) {
 			// issue #149 workaround
 			// The mouseleave event above does not always fire. Whenever the mouse is moving
 			// outside the plotarea, hide the tooltip
-			addEvent(doc, 'mousemove', function (e) {
-				var pageX = defined(e.pageX) ? e.pageX : e.page.x, // In mootools the event is wrapped and the page x/y position is named e.page.x
-					pageY = defined(e.pageX) ? e.pageY : e.page.y; // Ref: http://mootools.net/docs/core/Types/DOMEvent
-
-				if (chartPosition &&
-						!isInsidePlot(pageX - chartPosition.left - plotLeft,
-							pageY - chartPosition.top - plotTop)) {
-					resetTracker();
-				}
-			});
-
+			addEvent(doc, 'mousemove', hideTooltipOnMouseMove);
 
 			container.ontouchstart = function (e) {
 				// For touch devices, use touchmove to zoom
@@ -6721,6 +6901,19 @@ function Chart(options, callback) {
 		}
 
 		/**
+		 * Destroys the MouseTracker object and disconnects DOM events.
+		 */
+		function destroy() {
+			// Destroy the tracker group element
+			if (chart.trackerGroup) {
+				chart.trackerGroup = trackerGroup = chart.trackerGroup.destroy();
+			}
+
+			removeEvent(doc, 'mousemove', hideTooltipOnMouseMove);
+			container.onclick = container.onmousedown = container.onmousemove = container.ontouchstart = container.ontouchend = container.ontouchmove = null;
+		}
+
+		/**
 		 * Create the image map that listens for mouseovers
 		 */
 		placeTrackerGroup = function () {
@@ -6764,7 +6957,8 @@ function Chart(options, callback) {
 		extend(this, {
 			zoomX: zoomX,
 			zoomY: zoomY,
-			resetTracker: resetTracker
+			resetTracker: resetTracker,
+			destroy: destroy
 		});
 	}
 
@@ -6772,9 +6966,8 @@ function Chart(options, callback) {
 
 	/**
 	 * The overview of the chart's series
-	 * @param {Object} chart
 	 */
-	var Legend = function (chart) {
+	var Legend = function () {
 
 		var options = chart.options.legend;
 
@@ -6892,6 +7085,18 @@ function Chart(options, callback) {
 
 		}
 
+		/**
+		 * Destroys the legend.
+		 */
+		function destroy() {
+			if (box) {
+				box = box.destroy();
+			}
+
+			if (legendGroup) {
+				legendGroup = legendGroup.destroy();
+			}
+		}
 
 		/**
 		 * Position the checkboxes after the width is determined
@@ -7200,7 +7405,8 @@ function Chart(options, callback) {
 		return {
 			colorizeItem: colorizeItem,
 			destroyItem: destroyItem,
-			renderLegend: renderLegend
+			renderLegend: renderLegend,
+			destroy: destroy
 		};
 	};
 
@@ -7540,7 +7746,7 @@ function Chart(options, callback) {
 		chart.xAxis = [];
 		chart.yAxis = [];
 		axes = map(axes, function (axisOptions) {
-			axis = new Axis(chart, axisOptions);
+			axis = new Axis(axisOptions);
 			chart[axis.isXAxis ? 'xAxis' : 'yAxis'].push(axis);
 
 			return axis;
@@ -7634,14 +7840,14 @@ function Chart(options, callback) {
 				chartTitleOptions = arr[2];
 
 			if (title && titleOptions) {
-				title.destroy(); // remove old
-				title = null;
+				title = title.destroy(); // remove old
 			}
 			if (chartTitleOptions && chartTitleOptions.text && !title) {
 				chart[name] = renderer.text(
 					chartTitleOptions.text,
 					0,
-					0
+					0,
+					chartTitleOptions.useHTML
 				)
 				.attr({
 					align: chartTitleOptions.align,
@@ -7871,6 +8077,15 @@ function Chart(options, callback) {
 	}
 
 	/**
+	 * Fires endResize event on chart instance.
+	 */
+	function fireEndResize() {
+		fireEvent(chart, 'endResize', null, function () {
+			isResizing -= 1;
+		});
+	}
+
+	/**
 	 * Resize the chart to a given width and height
 	 * @param {Number} width
 	 * @param {Number} height
@@ -7932,11 +8147,12 @@ function Chart(options, callback) {
 		fireEvent(chart, 'resize');
 
 		// fire endResize and set isResizing back
-		setTimeout(function () {
-			fireEvent(chart, 'endResize', null, function () {
-				isResizing -= 1;
-			});
-		}, (globalAnimation && globalAnimation.duration) || 500);
+		// If animation is disabled, fire without delay
+		if (globalAnimation === false) {
+			fireEndResize();
+		} else { // else set a timeout with the animation duration
+			setTimeout(fireEndResize, (globalAnimation && globalAnimation.duration) || 500);
+		}
 	};
 
 	/**
@@ -8066,7 +8282,7 @@ function Chart(options, callback) {
 
 
 		// Legend
-		legend = chart.legend = new Legend(chart);
+		legend = chart.legend = new Legend();
 
 		// Get margins by pre-rendering axes
 		getMargins();
@@ -8126,13 +8342,13 @@ function Chart(options, callback) {
 
 		// Toolbar (don't redraw)
 		if (!chart.toolbar) {
-			chart.toolbar = Toolbar(chart);
+			chart.toolbar = Toolbar();
 		}
 
 		// Credits
 		if (credits.enabled && !chart.credits) {
 			creditsHref = credits.href;
-			renderer.text(
+			chart.credits = renderer.text(
 				credits.text,
 				0,
 				0
@@ -8168,8 +8384,15 @@ function Chart(options, callback) {
 	 * Clean up memory usage
 	 */
 	function destroy() {
-		var i = series.length,
+		var i,
 			parentNode = container && container.parentNode;
+
+		// If the chart is destroyed already, do nothing.
+		// This will happen if if a script invokes chart.destroy and
+		// then it will be called again on win.unload
+		if (chart === null) {
+			return;
+		}
 
 		// fire the chart.destoy event
 		fireEvent(chart, 'destroy');
@@ -8178,14 +8401,35 @@ function Chart(options, callback) {
 		removeEvent(win, 'unload', destroy);
 		removeEvent(chart);
 
-		each(axes, function (axis) {
-			removeEvent(axis);
+		// ==== Destroy collections:
+		// Destroy axes
+		i = axes.length;
+		while (i--) {
+			axes[i] = axes[i].destroy();
+		}
+
+		// Destroy each series
+		i = series.length;
+		while (i--) {
+			series[i] = series[i].destroy();
+		}
+
+		// ==== Destroy chart properties:
+		each(['title', 'subtitle', 'seriesGroup', 'clipRect', 'credits', 'tracker'], function (name) {
+			var prop = chart[name];
+
+			if (prop) {
+				chart[name] = prop.destroy();
+			}
 		});
 
-		// destroy each series
-		while (i--) {
-			series[i].destroy();
+		// ==== Destroy local variables:
+		each([chartBackground, legend, tooltip, renderer, tracker], function (obj) {
+			if (obj && obj.destroy) {
+				obj.destroy();
 		}
+		});
+		chartBackground = legend = tooltip = renderer = tracker = null;
 
 		// remove container and all SVG
 		if (container) { // can break in IE when destroyed before finished loading
@@ -8199,11 +8443,6 @@ function Chart(options, callback) {
 			container = null;
 		}
 
-		// IE7 leak
-		if (renderer) { // can break in IE when destroyed before finished loading
-			renderer.alignedObjects = null;
-		}
-
 		// memory and CPU leak
 		clearInterval(tooltipInterval);
 
@@ -8212,6 +8451,7 @@ function Chart(options, callback) {
 			delete chart[i];
 		}
 
+		chart = null;
 	}
 	/**
 	 * Prepare for first rendering after all data are loaded
@@ -8256,7 +8496,7 @@ function Chart(options, callback) {
 		chart.render = render;
 
 		// depends on inverted and on margins being set
-		chart.tracker = tracker = new MouseTracker(chart, options.tooltip);
+		chart.tracker = tracker = new MouseTracker(options.tooltip);
 
 		//globalAnimation = false;
 		render();
@@ -8445,7 +8685,7 @@ Point.prototype = {
 			prop;
 
 		series.chart.pointCount--;
-		
+
 		if (hoverPoints) {
 			point.setState();
 			erase(hoverPoints, point);
@@ -8453,12 +8693,12 @@ Point.prototype = {
 		if (point === series.chart.hoverPoint) {
 			point.onMouseOut();
 		}
-		
+
 
 		// remove all events
 		removeEvent(point);
 
-		each(['graphic', 'tracker', 'group', 'dataLabel', 'connector'], function (prop) {
+		each(['graphic', 'tracker', 'group', 'dataLabel', 'connector', 'shadowGroup'], function (prop) {
 			if (point[prop]) {
 				point[prop].destroy();
 			}
@@ -8507,7 +8747,7 @@ Point.prototype = {
 		point.firePointEvent(selected ? 'select' : 'unselect', { accumulate: accumulate }, function () {
 			point.selected = selected;
 			point.setState(selected && SELECT_STATE);
-	
+
 			// unselect all other points unless Ctrl or Cmd + click
 			if (!accumulate) {
 				each(chart.getSelectedPoints(), function (loopPoint) {
@@ -9491,6 +9731,7 @@ Series.prototype = {
 	destroy: function () {
 		var series = this,
 			chart = series.chart,
+			seriesClipRect = series.clipRect,
 			//chartSeries = series.chart.series,
 			issue134 = /\/5[0-9\.]+ (Safari|Mobile)\//.test(userAgent), // todo: update when Safari bug is fixed
 			destroy,
@@ -9511,6 +9752,13 @@ Series.prototype = {
 		each(series.data, function (point) {
 			point.destroy();
 		});
+
+		// If this series clipRect is not the global one (which is removed on chart.destroy) we
+		// destroy it here.
+		if (seriesClipRect && seriesClipRect !== chart.clipRect) {
+			series.clipRect = seriesClipRect.destroy();
+		}
+
 		// destroy all SVGElements associated to the series
 		each(['area', 'graph', 'dataLabelsGroup', 'group', 'tracker'], function (prop) {
 			if (series[prop]) {
@@ -11281,6 +11529,7 @@ win.Highcharts = {
 	dateFormat: dateFormat,
 	pathAnim: pathAnim,
 	getOptions: getOptions,
+	hasRtlBug: hasRtlBug,
 	numberFormat: numberFormat,
 	Point: Point,
 	Color: Color,
@@ -11301,6 +11550,6 @@ win.Highcharts = {
 	pick: pick,
 	extendClass: extendClass,
 	product: 'Highcharts',
-	version: '2.1.6'
+	version: '2.1.7'
 };
 }());
